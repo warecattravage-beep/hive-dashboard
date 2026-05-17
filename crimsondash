@@ -1,0 +1,9 @@
+#!/home/linuxbrew/.linuxbrew/bin/python3
+"""Quick launcher for Hive TUI dashboard."""
+import sys, subprocess, os
+dash = os.path.expanduser("~/Projects/hive-dashboard/hive_tui.py")
+if os.path.exists(dash):
+    os.execv("/home/linuxbrew/.linuxbrew/bin/python3", ["python3", dash] + sys.argv[1:])
+else:
+    print("Hive dashboard not found at ~/Projects/hive-dashboard/hive_tui.py")
+    sys.exit(1)
