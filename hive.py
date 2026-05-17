@@ -85,6 +85,52 @@ class Collectors:
         return data
 
     @staticmethod
+    def programs() -> list[dict]:
+        """Notable user programs currently running."""
+        notable = {
+            "signal-cli": "💬 Signal Messaging",
+            "obsidian": "📝 Obsidian Notes",
+            "firefox": "🦊 Firefox",
+            "chrome": "🌐 Chrome",
+            "telegram": "✈️ Telegram",
+            "spotify": "🎵 Spotify",
+            "code": "💻 VS Code",
+            "gnome-terminal": "📟 Terminal",
+            "node": "🟢 Node.js",
+            "python3": "🐍 Python",
+            "sshd": "🔑 SSH Server",
+            "signal-cli": "💬 Signal CLI",
+            "hive": "📊 Hive Dashboard",
+            "sentinel": "🛡 Sentinel Watch",
+        }
+        try:
+            r = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=10)
+            found = []
+            for line in r.stdout.split("\n"):
+                for key, label in notable.items():
+                    if key in line and "grep" not in line and "defunct" not in line:
+                        cols = line.split()
+                        if len(cols) >= 11:
+                            found.append({
+                                "label": label,
+                                "pid": cols[1],
+                                "cpu": cols[2],
+                                "mem": cols[3],
+                                "cmd": " ".join(cols[10:])[:50],
+                            })
+                        break
+            # Deduplicate by label
+            seen = set()
+            unique = []
+            for p in found:
+                if p["label"] not in seen:
+                    seen.add(p["label"])
+                    unique.append(p)
+            return sorted(unique, key=lambda x: float(x["mem"]), reverse=True)
+        except:
+            return []
+
+    @staticmethod
     def alerts() -> list[str]:
         try:
             log = Path.home() / "Projects" / "sentinel-watch" / "log" / "sentinel.log"
@@ -120,6 +166,10 @@ def _pcard(title: str, body: str) -> str:
 def _stat(label: str, value: str) -> str:
     return f'<div class="stat"><span class="label">{label}</span><span class="value">{value}</span></div>'
 
+def _program_row(p: dict) -> str:
+    return f'<div class="stat"><span class="label">{p["label"]}</span><span class="value">PID {p["pid"]} &middot; {p["cpu"]}%CPU &middot; {p["mem"]}%MEM</span></div>'
+
+
 def _service_row(s: dict) -> str:
     cls = "ok" if s["status"] == "active" else "err"
     return f'<div class="stat"><span class="label">{s["icon"]} {s["label"]}</span><span class="value"><span class="badge badge-{cls}">{s["status"]}</span></span></div>'
@@ -143,6 +193,9 @@ def render() -> str:
     cards += _pcard("Network", _stat("IPs", ips_html) +
                     f'<div class="stat" style="display:block;"><span class="label">Tailscale</span><pre style="font-size:0.75rem;color:#8b949e;margin-top:4px;">{net["tailscale"][:200]}</pre></div>')
     cards += _pcard("Services", "".join(_service_row(s) for s in c.services()))
+    progs = c.programs()
+    if progs:
+        cards += _pcard("Running Programs", "".join(_program_row(p) for p in progs))
 
     projects_html = "".join(_project_row(p) for p in c.projects())
     alerts_html = "".join(f'<div class="alert-item">{a}</div>' for a in c.alerts()) or '<div style="color:#3fb950">No recent alerts</div>'
